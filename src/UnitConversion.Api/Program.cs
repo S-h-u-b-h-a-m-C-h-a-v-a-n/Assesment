@@ -38,9 +38,13 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serves the browser UI from wwwroot (index.html at "/").
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
 app.MapHealthChecks("/health");
-app.MapGet("/", () => Results.Redirect("/scalar")).ExcludeFromDescription();
 
 await app.RunAsync();
 

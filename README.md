@@ -7,6 +7,9 @@ It supports **8 categories / 73 units** out of the box: length, mass, temperatur
 area, time, speed and data storage. The design aims to scale to hundreds of units without
 code changes to the conversion logic.
 
+It also ships a small **browser UI** (plain HTML/CSS/JavaScript, served by the API at `/`)
+for trying conversions without any tools.
+
 ```http
 GET /api/v1/conversions?value=100&from=C&to=F
 ```
@@ -26,6 +29,7 @@ GET /api/v1/conversions?value=100&from=C&to=F
 ## Contents
 
 - [Running locally](#running-locally)
+- [Web frontend](#web-frontend)
 - [API reference](#api-reference)
 - [Project structure](#project-structure)
 - [Design decisions and trade-offs](#design-decisions-and-trade-offs)
@@ -55,6 +59,7 @@ The API listens on **http://localhost:5080**. In Development:
 
 | URL | What |
 | --- | --- |
+| http://localhost:5080 | **Web frontend**: the converter UI |
 | http://localhost:5080/scalar | Interactive API documentation (try requests in the browser) |
 | http://localhost:5080/openapi/v1.json | OpenAPI document |
 | http://localhost:5080/health | Health check |
@@ -76,7 +81,7 @@ docker build -t unit-conversion-api .
 docker run --rm -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development unit-conversion-api
 ```
 
-Then open http://localhost:8080/scalar. API docs are off by default outside Development; you
+Then open http://localhost:8080 (UI) or http://localhost:8080/scalar (API docs). API docs are off by default outside Development; you
 can enable them with `-e Api__EnableDocs=true`.
 
 ### Running the tests
@@ -84,6 +89,29 @@ can enable them with `-e Api__EnableDocs=true`.
 ```bash
 dotnet test
 ```
+
+---
+
+## Web frontend
+
+Open **http://localhost:5080** after starting the API. The page lets you:
+
+- pick a category, type a value and choose the from/to units; the result updates as you type;
+- swap the units, choose the rounding and copy the result;
+- see the value in **every unit of the category** at once (this uses the batch endpoint),
+  and click a row to make it the target unit;
+- reuse recent conversions (kept in the browser's local storage).
+
+Error responses from the API (incompatible units, below absolute zero, ...) are shown inline.
+It works on phones and follows the system's light/dark theme.
+
+**Why plain HTML/JS served from `wwwroot`:** the assessment is about the API, so the UI is
+deliberately small. Static files need no Node.js, npm or build step, start with the same
+`dotnet run`, and share the API's origin, so no CORS configuration is needed. The UI uses only
+the public API endpoints, so it could later be replaced by a separate React/Angular app
+(with CORS enabled) without touching the backend.
+
+Source: `src/UnitConversion.Api/wwwroot/` (`index.html`, `css/site.css`, `js/app.js`).
 
 ---
 
@@ -180,6 +208,7 @@ Call `GET /api/v1/units` for the live list including all aliases.
 ```
 ├── src/
 │   ├── UnitConversion.Api/              HTTP layer: controllers, contracts (DTOs), error handling, configuration
+│   │   └── wwwroot/                     Browser UI (index.html, css/, js/), served at "/"
 │   ├── UnitConversion.Core/             Domain + application logic, no framework dependencies
 │   │   ├── Domain/                      UnitCategory, UnitDefinition, ConversionResult
 │   │   ├── Abstractions/                IUnitCatalog, IUnitConverter, IUnitDefinitionProvider
@@ -306,6 +335,7 @@ Categories can declare a minimum (`0 K` for temperature), so `-300 °C` is rejec
 - Authentication, rate limiting and response caching
 - Compound units (e.g. `kg·m/s²`) and currency (needs live exchange rates)
 - Localised unit names
+- Browser end-to-end tests for the UI (e.g. Playwright)
 
 ---
 
